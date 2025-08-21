@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>MMO RPG Avançado</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom, #1d1d1d, #2b2b2b);
+      color: #fff;
+    }
+    .game-container {
+      display: grid;
+      grid-template-areas: "hud hud" "map inventory";
+      grid-template-columns: 3fr 1fr;
+      grid-template-rows: 80px 1fr;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .hud {
+      grid-area: hud;
+      background-color: #292929;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 16px;
+      border-bottom: 2px solid #444;
+    }
+    .hud div {
+      transition: all 0.3s ease;
+    }
+    .map {
+      grid-area: map;
+      background-color: #111;
+      overflow: auto;
+      position: relative;
+    }
+    .map-content {
+      position: relative;
+      width: 1260px;
+      height: 1260px;
+      background-color: #121212;
+      background-size: cover;
+      border: 2px solid #ff0000;
+    }
+    .map-content::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 140%;
+      height: 120%;
+      background-image:
+        linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .character, .enemy, .obstacle, .tile {
+      width: 40px;
+      height: 40px;
+      position: absolute;
+      transform: translate(-50%, -50%);
+      transition: top 0.3s ease, left 0.3s ease, opacity 0.2s ease;
+    }
+    .character {
+      background-color: gold;
+      border-radius: 50%;
+      box-shadow: 0 0 6px 2px gold;
+      z-index: 2;
+    }
+    .character-hp {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 6px;
+      background-color: #222;
+      border-radius: 3px;
+      overflow: hidden;
+      z-index: 3;
+    }
+    .character-hp-bar {
+      height: 100%;
+      background-color: limegreen;
+      width: 100%;
+      transition: width 0.2s ease;
+    }
+    .enemy {
+      background-color: crimson;
+      border-radius: 50%;
+      box-shadow: 0 0 5px 1px red;
+      z-index: 1;
+    }
+    .hunter {
+      background-color: darkorange;
+      border-radius: 50%;
+      box-shadow: 0 0 5px 1px orange;
+      z-index: 1;
+    }
+    .enemy-hp, .hunter-hp {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 6px;
+      border-radius: 3px;
+      overflow: hidden;
+      background-color: #222;
+    }
+    .enemy-hp-bar {
+      height: 100%;
+      background-color: limegreen;
+      width: 100%;
+    }
+    .inventory {
+      grid-area: inventory;
+      background-color: #2b2b2b;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border-left: 2px solid #444;
+    }
+    .inventory h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-size: 18px;
+      border-bottom: 1px solid #555;
+    }
+    .item {
+      background-color: #444;
+      padding: 8px;
+      margin: 5px 0;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    .item:hover {
+      background-color: #666;
+    }
+    .chat {
+      background-color: #333;
+      padding: 5px;
+      margin-top: 10px;
+      height: 100px;
+      overflow-y: auto;
+      font-size: 12px;
+      border-radius: 5px;
+    }
+    .chat input {
+      width: 100%;
+      padding: 5px;
+      margin-top: 5px;
+      border: none;
+      border-radius: 4px;
+      background-color: #555;
+      color: #fff;
+    }
+    #editor-panel {
+      display: none;
+      position: absolute;
+      top: 100px;
+      left: 100px;
+      background: #222;
+      border: 2px solid #555;
+      padding: 10px;
+      z-index: 10;
+      color: #fff;
+      opacity: 0.85;
+    }
+    #editor-panel button {
+      margin: 5px 0;
+      padding: 5px 10px;
+      background-color: #444;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    .editor-section {
+      margin-bottom: 15px;
+      border-top: 1px solid #555;
+      padding-top: 10px;
+    }
+   .editor-section h4 {
+     margin: 5px 0;
+     font-size: 14px;
+     color: #ccc;
+    }
+    #editor-panel button:hover {
+      background-color: #777;
+    }
+    .obstacle {
+      background-color: #666;
+      border: 0px solid #999;
+    }
+    .tile.water {
+      background-color: #0077be;
+      opacity: 0.6;
+    }
+    .tile.deepwater {
+      background-color: #013655;
+      opacity: 0.6;
+    }
+    .tile.lava {
+      background-color: #ff4500;
+      opacity: 0.6;
+    }
+    .tile.sand {
+      background-color: #f5d681;
+      opacity: 0.6;
+    }
+    .tile.forest {
+      background-image: url('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSkPWaQBWQRK7MUqE5GTgdzmVGScvtV4C_uFA&s');
+    }
+    .tile.wood {
+      background-color: #885e04;
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div class="hud">
+      <div>🧝 Nome: <span id="player-name">Jogador</span></div>
+      <div>❤️ HP: <span id="player-hp">100</span></div>
+      <div>⚔️ Nível: <span id="player-level">1</span> | XP: <span id="player-xp">0</span></div>
+    </div>
+    <div class="map" id="map">
+      <div class="map-content" id="mapContent">
+        <div class="character" id="character">
+          <div class="character-hp">
+            <div class="character-hp-bar" id="characterHpBar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="inventory">
+      <div>
+        <h3>Inventário</h3>
+        <div class="item" onclick="usePotion()">Poção de Cura</div>
+        <div class="item">Espada de Ferro</div>
+        <div class="item">Mapa Antigo</div>
+      </div>
+      <div class="chat" id="chat-box"></div>
+      <input type="text" placeholder="Digite uma mensagem..." onkeydown="sendMessage(event)">
+    </div>
+  </div>
+
+  <div id="editor-panel">
+    <h3>🛠️ Editor de Mapa</h3>
+    <div class="editor-section">
+      <h4>👾 Inimigos Especiais</h4>
+      <button onclick="addEnemyHere()">Adicionar Inimigo Aqui</button>
+      <button onclick="createEnemy(gridX, gridY, 'zumbi')">Adicionar Zumbi</button>
+      <button onclick="createEnemy(gridX, gridY, 'caçador')">Adicionar Caçador</button>
+      <button onclick="createEnemy(gridX, gridY, 'fantasma')">Adicionar Fantasma</button>
+      <button onclick="createEnemy(gridX, gridY, 'golem')">Adicionar Golem</button>
+      <button onclick="createEnemy(gridX, gridY, 'arqueiro')">Adicionar Arqueiro</button>
+      <button onclick="createEnemy(gridX, gridY, 'mago')">Adicionar Mago Sombrio</button>
+      <button onclick="createEnemy(gridX, gridY, 'explodidor')">Adicionar Explodidor</button>
+    </div>
+
+    <div class="editor-section">
+      <h4>🧱 Obstáculos</h4>
+      <button onclick="createObstacle()">Criar Obstáculo</button>
+      <button onclick="removeObstacle()">Remover Obstáculo</button>
+    </div>
+
+    <div class="editor-section">
+      <h4>🌍 Terrenos</h4>
+      <button onclick="placeTerrain('water')">Adicionar Água</button>
+      <button onclick="placeTerrain('deepwater')">Adicionar Água Profunda</button>
+      <button onclick="placeTerrain('lava')">Adicionar Lava</button>
+      <button onclick="placeTerrain('sand')">Adicionar Areia</button>
+      <button onclick="placeTerrain('forest')">Adicionar Floresta</button>
+      <button onclick="placeTerrain('wood')">Adicionar Madeira</button>
+      <button onclick="removeTerrain()">Remover Terreno</button>
+    </div>
+
+    <div class="editor-section">
+      <button onclick="closeEditor()">❌ Fechar Painel</button>
+    </div>
+  </div>
+
+  <script>
+    const terrainMap = {};
+    let adminMode = false;
+
+    const cellSize = 40;
+    const map = document.getElementById("map");
+    const mapContent = document.getElementById("mapContent");
+    const character = document.getElementById('character');
+    let gridX = 5;
+    let gridY = 5;
+    let hp = 100;
+    let xp = 0;
+    let level = 1;
+    let enemyCount = 0;
+    const enemies = {};
+
+    const playerName = prompt("Digite seu nome:");
+    document.getElementById("player-name").textContent = playerName || "Jogador";
+
+    function updateHUD() {
+      document.getElementById("player-hp").textContent = hp;
+      document.getElementById("player-xp").textContent = xp;
+      document.getElementById("player-level").textContent = level;
+      document.getElementById("characterHpBar").style.width = `${Math.max(0, hp)}%`;
+    }
+
+    function updatePosition() {
+      character.style.left = `${gridX * cellSize}px`;
+      character.style.top = `${gridY * cellSize}px`;
+      map.scrollLeft = gridX * cellSize - map.clientWidth / 2 + cellSize / 2;
+      map.scrollTop = gridY * cellSize - map.clientHeight / 2 + cellSize / 2;
+    }
+
+    function placeTerrain(type) {
+      const key = `${gridX}-${gridY}`;
+      if (terrainMap[key]) return;
+      const tile = document.createElement("div");
+      tile.className = `tile ${type}`;
+      tile.id = `terrain-${key}`;
+      tile.style.left = `${gridX * cellSize}px`;
+      tile.style.top = `${gridY * cellSize}px`;
+      mapContent.appendChild(tile);
+      terrainMap[key] = type;
+    }
+
+    function removeTerrain() {
+      const key = `${gridX}-${gridY}`;
+      const tile = document.getElementById(`terrain-${key}`);
+      if (tile) {
+        tile.remove();
+        delete terrainMap[key];
+        alert("Terreno removido!");
+      } else {
+        alert("Não há terreno aqui.");
+      }
+    }
+
+    function createObstacle() {
+      const id = `obstacle-${gridX}-${gridY}`;
+      if (document.getElementById(id)) {
+        alert("🚫 Já existe um obstáculo aqui.");
+        return;
+      }
+      const obstacle = document.createElement("div");
+      obstacle.className = "obstacle";
+      obstacle.id = id;
+      obstacle.style.left = `${gridX * cellSize}px`;
+      obstacle.style.top = `${gridY * cellSize}px`;
+      mapContent.appendChild(obstacle);
+    }
+
+    function removeObstacle() {
+      const id = `obstacle-${gridX}-${gridY}`;
+      const obstacle = document.getElementById(id);
+      if (obstacle) {
+        obstacle.remove();
+        alert("🧹 Obstáculo removido!");
+      } else {
+        alert("Não há obstáculo aqui.");
+      }
+    }
+
+    function isBlocked(x, y) {
+      return adminMode ? false : document.getElementById(`obstacle-${x}-${y}`);
+    }
+
+    function createEnemy(x, y, type = "zumbi") {
+      const id = `enemy${++enemyCount}`;
+      const enemy = document.createElement("div");
+      enemy.className = `enemy ${type}`;
+      enemy.id = id;
+
+      const hpBar = document.createElement("div");
+      hpBar.className = "enemy-hp";
+      const hpFill = document.createElement("div");
+      hpFill.className = "enemy-hp-bar";
+      hpBar.appendChild(hpFill);
+      enemy.appendChild(hpBar);
+
+      mapContent.appendChild(enemy);
+
+      let hpValue = 30;
+      let behavior = "normal";
+
+      switch (type) {
+        case "enemy": enemy.style.backgroundColor = "crimson"; break;
+        case "zumbi": enemy.style.backgroundColor = "#556B2F"; break;
+        case "caçador": enemy.style.backgroundColor = "darkorange"; behavior = "hunter"; break;
+        case "fantasma": enemy.style.backgroundColor = "#87CEFA"; behavior = "ghost"; break;
+        case "golem": enemy.style.backgroundColor = "#808080"; hpValue = 80; break;
+        case "arqueiro": enemy.style.backgroundColor = "#8B4513"; behavior = "ranged"; break;
+        case "mago": enemy.style.backgroundColor = "#4B0082"; behavior = "caster"; break;
+        case "explodidor": enemy.style.backgroundColor = "#FF0000"; behavior = "suicide"; break;
+      }
+
+      enemies[id] = { x, y, hp: hpValue, element: enemy, hpFill, type, behavior };
+      updateEnemyPosition(id);
+    }
+
+    function updateEnemyPosition(id) {
+      const enemy = enemies[id];
+      enemy.element.style.left = `${enemy.x * cellSize}px`;
+      enemy.element.style.top = `${enemy.y * cellSize}px`;
+    }
+
+    function attackEnemy(id) {
+      const enemy = enemies[id];
+      const dist = Math.abs(gridX - enemy.x) + Math.abs(gridY - enemy.y);
+      if (dist <= 1 && enemy.hp > 0) {
+        enemy.hp -= 10;
+        const percent = Math.max(0, enemy.hp / 30 * 100);
+        enemy.hpFill.style.width = `${percent}%`;
+        if (enemy.hp <= 0) {
+          enemy.element.remove();
+          delete enemies[id];
+          xp += 20;
+          if (xp >= level * 50) {
+            level++;
+            xp = 0;
+            alert(`🎉 Você subiu para o nível ${level}!`);
+          }
+          updateHUD();
+        }
+      }
+    }
+
+    function hunterAttack(enemy) {
+      const dist = Math.abs(gridX - enemy.x) + Math.abs(gridY - enemy.y);
+      if (dist <= 1) {
+        hp -= 10;
+        if (hp <= 0) {
+          hp = 0;
+          alert("💀 Você foi derrotado!");
+        }
+        updateHUD();
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      let newX = gridX;
+      let newY = gridY;
+
+      switch (e.key.toLowerCase()) {
+        case 'w': newY = Math.max(1, gridY - 1); break;
+        case 's': newY = Math.min(31, gridY + 1); break;
+        case 'a': newX = Math.max(1, gridX - 1); break;
+        case 'd': newX = Math.min(31, gridX + 1); break;
+        case ' ':
+          Object.keys(enemies).forEach(id => attackEnemy(id));
+          return;
+      }
+
+    if (!isBlocked(newX, newY)) {
+      gridX = newX;
+      gridY = newY;
+      updatePosition();
+    }
+  });
+
+  function usePotion() {
+    if (hp < 100) {
+      hp = Math.min(100, hp + 30);
+      updateHUD();
+    } else {
+      alert("Você já está com HP cheio.");
+    }
+  }
+
+  function censorMessage(text) {
+    const blacklist = ['abacaxi', 'palavrão', 'nanismo', 'westo', 'catapimbas', 'proibido'];
+    blacklist.forEach(word => {
+      const regex = new RegExp(`\\b${word}\\b`, 'gi');
+      text = text.replace(regex, '[CENSURADO]');
+    });
+    return text;
+  }
+
+  function sendMessage(e) {
+    if (e.key === "Enter") {
+      const msg = e.target.value.trim();
+
+      if (msg.length > 100) {
+        alert("❗ Sua mensagem ultrapassa o limite de 100 caracteres.");
+        return;
+      }
+
+      if (msg) {
+        const chatBox = document.getElementById("chat-box");
+        const p = document.createElement("p");
+        const censoredMsg = censorMessage(msg);
+        p.textContent = `${playerName}: ${censoredMsg}`;
+        chatBox.appendChild(p);
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        if (msg === "/adm") {
+          adminMode = true;
+          openEditor();
+          const adminMsg = document.createElement("p");
+          adminMsg.textContent = "🛠️ Modo administrador ativado!";
+          chatBox.appendChild(adminMsg);
+        }
+
+        if (msg === "/adm off") {
+          adminMode = false;
+          closeEditor();
+          const adminMsg = document.createElement("p");
+          adminMsg.textContent = "🔒 Modo administrador desativado!";
+          chatBox.appendChild(adminMsg);
+        }
+
+        e.target.value = "";
+      }
+    }
+  }
+
+  function openEditor() {
+    document.getElementById("editor-panel").style.display = "block";
+  }
+
+  function closeEditor() {
+    document.getElementById("editor-panel").style.display = "none";
+  }
+
+  function addEnemyHere() {
+    createEnemy(gridX, gridY, 50);
+    alert("👾 Inimigo adicionado na posição atual!");
+  }
+
+  function addHunterHere() {
+    createHunter(gridX, gridY, 40);
+    alert("🐺 Caçador adicionado na posição atual!");
+  }
+
+    // Movimento aleatório dos inimigos
+    setInterval(() => {
+  Object.keys(enemies).forEach(id => {
+    const enemy = enemies[id];
+    if (enemy.isHunter) {
+      // movimentação de perseguição
+      if (enemy.x < gridX) enemy.x++;
+      else if (enemy.x > gridX) enemy.x--;
+      if (enemy.y < gridY) enemy.y++;
+      else if (enemy.y > gridY) enemy.y--;
+
+      updateEnemyPosition(id);
+      hunterAttack(enemy); // ataque logo após movimentar
+    } else {
+      // inimigos normais
+      const dir = Math.floor(Math.random() * 4);
+      switch (dir) {
+        case 0: enemy.y = Math.max(0, enemy.y - 1); break;
+        case 1: enemy.y = Math.min(14, enemy.y + 1); break;
+        case 2: enemy.x = Math.max(0, enemy.x - 1); break;
+        case 3: enemy.x = Math.min(19, enemy.x + 1); break;
+      }
+      updateEnemyPosition(id);
+    }
+  });
+}, 1000);
+ 
+    setInterval(() => { // Spawn de novos inimigos a cada 20 segundos
+      const x = Math.floor(Math.random() * 32);
+      const y = Math.floor(Math.random() * 32);
+      createEnemy(x, y, 30);
+    }, 20000);
+ 
+    updateHUD(); // Inicialização
+    updatePosition();
+    createEnemy(6, 3, 30);
+    createEnemy(10, 8, 40);
+    createHunter(8, 5, 40);
+    createHunter(12, 10, 40);
+  </script>
+</body>
+</html>
